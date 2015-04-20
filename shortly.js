@@ -23,29 +23,35 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
 
-app.get('/', 
+app.get('/',
+function(req, res) {
+  //if (req.session.user) {
+    //res.render('index');
+    //next();
+  //} else {
+    res.redirect('/login');
+  //}
+});
+
+app.get('/create',
 function(req, res) {
   res.render('index');
 });
 
-app.get('/create', 
-function(req, res) {
-  res.render('index');
-});
-
-app.get('/links', 
+app.get('/links',
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
   });
 });
 
-app.post('/links', 
+app.post('/links',
 function(req, res) {
   var uri = req.body.url;
-
+  console.log("LINE 46: "+uri);
   if (!util.isValidUrl(uri)) {
-    console.log('Not a valid url: ', uri);
+    console.log("LINE 48:" + req.uri, uri);
+    console.log('LINE 49: Not a valid url: ', uri);
     return res.send(404);
   }
 
@@ -78,7 +84,20 @@ function(req, res) {
 // Write your authentication routes here
 /************************************************************/
 
+app.get('/login', function(req, res){
+  res.render('login');
+});
 
+app.get('/signup', function(req, res){
+  res.render('signup');
+});
+
+app.post('/login', function(req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+  console.log('what is my name: ', username);
+  console.log("open the door: ", password);
+});
 
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
@@ -87,6 +106,7 @@ function(req, res) {
 /************************************************************/
 
 app.get('/*', function(req, res) {
+  console.log(req.params);
   new Link({ code: req.params[0] }).fetch().then(function(link) {
     if (!link) {
       res.redirect('/');
