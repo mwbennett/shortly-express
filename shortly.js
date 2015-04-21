@@ -3,6 +3,7 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var session = require('express-session');
+var bcrypt = require('bcrypt-nodejs');
 
 
 var db = require('./app/config');
@@ -105,14 +106,35 @@ app.get('/signup', function(req, res){
   res.render('signup');
 });
 
+app.post('/signup', function(req,res){
+  var getUserName = req.body.username;
+  var getUserPassword = req.body.password;
+  var user = new User({
+    username: getUserName,
+    password: getUserPassword
+  }).save().then(function(user){
+    if (user) {
+      res.redirect('index');
+    }
+  });
+});
+
 app.post('/login', function(req, res) {
   sess = req.session;
   sess.username = req.body.username;
-  if (sess.username){
-    res.redirect('index');
-  } else {
-    res.redirect('signup');
-  }
+  new User({username: sess.username})
+  .fetch()
+  .then(function(model) {
+    console.log("req.bod.pass: ", req.body.password)
+    bcrypt.compare(req.body.password, model.attributes.password, function(err, response) {
+      if (response) {
+        res.redirect('index');
+      } else {
+        console.log("login failed");
+        res.redirect('signup');
+      }
+    });
+  });
 });
 
 /************************************************************/
