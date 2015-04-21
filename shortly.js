@@ -2,6 +2,7 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var session = require('express-session');
 
 
 var db = require('./app/config');
@@ -21,37 +22,49 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
+app.use(session({secret: "mark"}));
 
+var sess;
+
+var checkForSession = function(res, req, ifYes, ifNo){
+  sess = req.session;
+  if (sess.username) {
+    res.render(ifYes);
+    // next();
+  } else {
+    res.redirect(ifNo);
+  }
+};
 
 app.get('/',
 function(req, res) {
-  //if (req.session.user) {
-    //res.render('index');
-    //next();
-  //} else {
-    res.redirect('/login');
-  //}
+  checkForSession(res, req, 'index', 'login');
 });
 
 app.get('/create',
 function(req, res) {
-  res.render('index');
+  checkForSession(res, req, 'index', 'login');
 });
 
 app.get('/links',
 function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.send(200, links.models);
-  });
+  sess = req.session;
+  if (sess.username) {
+    Links.reset().fetch().then(function(links) {
+      res.send(200, links.models);
+    }).catch(function(err){
+      res.writeHead(404);
+      res.send(err);
+    });
+  } else {
+    res.redirect('login');
+  }
 });
 
 app.post('/links',
 function(req, res) {
   var uri = req.body.url;
-  console.log("LINE 46: "+uri);
   if (!util.isValidUrl(uri)) {
-    console.log("LINE 48:" + req.uri, uri);
-    console.log('LINE 49: Not a valid url: ', uri);
     return res.send(404);
   }
 
@@ -93,10 +106,13 @@ app.get('/signup', function(req, res){
 });
 
 app.post('/login', function(req, res) {
-  var username = req.body.username;
-  var password = req.body.password;
-  console.log('what is my name: ', username);
-  console.log("open the door: ", password);
+  sess = req.session;
+  sess.username = req.body.username;
+  if (sess.username){
+    res.redirect('index');
+  } else {
+    res.redirect('signup');
+  }
 });
 
 /************************************************************/
