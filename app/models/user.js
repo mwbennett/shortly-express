@@ -13,11 +13,11 @@ var User = db.Model.extend({
         if (err){
           throw err;
         }
-        bcrypt.hash(model.attributes.password, salt, null, function(err, hash) {
+        bcrypt.hash(model.attributes.password, salt, null, function(err, encrypted) {
           if (err){
             throw err;
           }
-          model.set('password', hash);
+          model.set('password', encrypted);
         });
       });
     });

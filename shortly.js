@@ -113,7 +113,9 @@ app.post('/signup', function(req,res){
     username: getUserName,
     password: getUserPassword
   }).save().then(function(user){
-    if (user) {
+    sess = req.session;
+    sess.username = user.attributes.username;
+    if (sess.username) {
       res.redirect('index');
     }
   });
@@ -136,6 +138,16 @@ app.post('/login', function(req, res) {
     });
   });
 });
+
+app.get('/logout', function(req, res){
+  sess = req.session;
+  sess.destroy(function(err) {
+    if (err) {
+      throw err;
+    }
+    res.redirect('/');
+  })
+})
 
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
@@ -165,6 +177,16 @@ app.get('/*', function(req, res) {
     }
   });
 });
+
+// app.get('/logout', function(req,res) {
+//   console.log("logging out from a post");
+//   req.session.destroy(function(err) {
+//     if (err) {
+//       throw err;
+//     }
+//     res.redirect('/');
+//   });
+// })
 
 console.log('Shortly is listening on 4568');
 app.listen(4568);
