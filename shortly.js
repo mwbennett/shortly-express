@@ -23,33 +23,41 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
-app.use(session({secret: "mark"}));
+app.use(session({secret: "mark",
+  resave: false,
+  saveUninitialized: true}));
 
-var sess;
+var createSession = function(req, res, newUser) {
+  return req.session.regenerate(function() {
+      req.session.user = newUser;
+      res.redirect('/');
+    });
+};
 
-var checkForSession = function(res, req, ifYes, ifNo){
-  sess = req.session;
-  if (sess.username) {
-    res.render(ifYes);
-    // next();
+var isLoggedIn = function(req, res) {
+  return req.session ? !!req.session.user : false;
+};
+
+var checkUser = function(req, res, next){
+  if (!isLoggedIn(req)){
+    res.redirect('/login');
   } else {
-    res.redirect(ifNo);
+    next();
   }
 };
 
-app.get('/',
+app.get('/', checkUser,
 function(req, res) {
-  checkForSession(res, req, 'index', 'login');
+  res.render('index');
 });
 
-app.get('/create',
+app.get('/create', checkUser,
 function(req, res) {
-  checkForSession(res, req, 'index', 'login');
+  res.render('index');
 });
 
-app.get('/links',
+app.get('/links', checkUser,
 function(req, res) {
-  sess = req.session;
   if (sess.username) {
     Links.reset().fetch().then(function(links) {
       res.send(200, links.models);
@@ -62,7 +70,7 @@ function(req, res) {
   }
 });
 
-app.post('/links',
+app.post('/links', checkUser,
 function(req, res) {
   var uri = req.body.url;
   if (!util.isValidUrl(uri)) {
@@ -98,10 +106,6 @@ function(req, res) {
 // Write your authentication routes here
 /************************************************************/
 
-app.get('/login', function(req, res){
-  res.render('login');
-});
-
 app.get('/signup', function(req, res){
   res.render('signup');
 });
@@ -109,33 +113,41 @@ app.get('/signup', function(req, res){
 app.post('/signup', function(req,res){
   var getUserName = req.body.username;
   var getUserPassword = req.body.password;
-  var user = new User({
-    username: getUserName,
-    password: getUserPassword
-  }).save().then(function(user){
-    sess = req.session;
-    sess.username = user.attributes.username;
-    if (sess.username) {
-      res.redirect('index');
-    }
-  });
+  new User({username: getUserName})
+    .fetch()
+    .then(function (user){
+      if (!user){
+        var user = new User({
+          username: getUserName,
+          password: getUserPassword
+        });
+        user.save().then(function(user){
+          console.log("USER: ", user);
+          createSession(req, res, user);
+        })
+      }
+    });
+});
+
+app.get('/login', function(req, res){
+  res.render('login');
 });
 
 app.post('/login', function(req, res) {
-  sess = req.session;
-  sess.username = req.body.username;
-  new User({username: sess.username})
+  new User({username: req.body.username})
   .fetch()
   .then(function(model) {
-    console.log("req.bod.pass: ", req.body.password)
-    bcrypt.compare(req.body.password, model.attributes.password, function(err, response) {
-      if (response) {
-        res.redirect('index');
-      } else {
-        console.log("login failed");
-        res.redirect('signup');
-      }
-    });
+    if (!model){
+      res.redirect('/login');
+    } else {
+      model.comparePassword(req.body.password, function(response){
+        if (response) {
+          createSession(req, res, model);
+        } else {
+          res.redirect('/signup');
+        }
+      })
+    }
   });
 });
 

@@ -6,25 +6,28 @@ var User = db.Model.extend({
   tableName: 'users',
   hasTimestamps: true,
 
-  initialize: function() {
-    this.on('creating', function(model, attrs, options){
-      model.set('username', model.attributes.username);
-      bcrypt.genSalt(10, function(err, salt) {
-        if (err){
-          throw err;
-        }
-        bcrypt.hash(model.attributes.password, salt, null, function(err, encrypted) {
-          if (err){
-            throw err;
-          }
-          model.set('password', encrypted);
-        });
-      });
+  initialize: function(){
+    this.on('creating', this.hashPassword);
+  },
+
+  comparePassword: function(attemptedPassword, callback) {
+    bcrypt.compare(attemptedPassword, this.get('password'), function(err, isMatch) {
+      callback(isMatch);
     });
+  },
+
+  hashPassword: function(){
+    console.log("In hash password");
+    var cipher = Promise.promisify(bcrypt.hash);
+    // return a promise - bookshelf will wait for the promise
+    // to resolve before completing the create action
+    return cipher(this.get('password'), null, null)
+      .bind(this)
+      .then(function(hash) {
+        this.set('password', hash);
+       });
   }
 });
-
-
 
 
 module.exports = User;
